@@ -12,10 +12,26 @@ ID list:
 2: SumAllEstimator
 3: SumAllBaselineEstimator
 4: SumPulseEstimator
+5: PulseFitEstimator
 """
-ESTIMATOR_ID = 1
+ESTIMATOR_ID = 5
 DATA_FILE = "calibration.pkl"
 PLOT_BEST_FIT = True
+
+"""
+To avoid using calibration constants, set to 0
+To use calibration constants, set to 1
+"""
+USE_CALIBRATION_CONSTANTS = 0
+CALIBRATION_CONSTANTS = [
+        [1, 28.96],
+        [1, 35.5],
+        [1, 0.26],
+        [1, 0.30],
+        [1, 0.31],
+        [1, 38.7]
+    ]
+
 
 def gaussian(x, A, mean, width, base):
     """
@@ -37,8 +53,10 @@ def plot_bestfit():
     Helper function used to plot the Gaussian fit
     """
     # Optimize values for the Gaussian fit with curve_fit
+    use_conversion = np.absolute(USE_CALIBRATION_CONSTANTS - 1)
+    adjust_factor = CALIBRATION_CONSTANTS[ESTIMATOR_ID][use_conversion]
     popt, pcov = curve_fit(gaussian, bin_centres, bin_counts,
-                           sigma=uncertainty, absolute_sigma=True)
+                           sigma=uncertainty, p0=(150, 10 / adjust_factor, 2 / adjust_factor, 3), absolute_sigma=True)
 
     # Calculate the Chi squared and degrees of freedom
     bin_counts_fit = gaussian(bin_centres, *popt)
@@ -50,8 +68,34 @@ def plot_bestfit():
     y_bestfit = gaussian(x_bestfit, *popt)
     plt.plot(x_bestfit, y_bestfit, label='Fit')
 
+def get_estimator(choice: int):
+    """
+    Creates an estimator based on use choice.
+    
+    Parameters:
+        choice: The chosen estimator, as dictated by the value from the table above
+    
+    Returns:
+        The chosen estimator
+    """
+    applied_constant = CALIBRATION_CONSTANTS[choice][USE_CALIBRATION_CONSTANTS]
+    
+    match choice:
+        case 0:
+            return est.MaxMinEstimator(DATA_FILE, applied_constant)
+        case 1:
+            return est.MaxBaselineEstimator(DATA_FILE, applied_constant)
+        case 2:
+            return est.SumAllEstimator(DATA_FILE, applied_constant)
+        case 3:
+            return est.SumAllBaselineEstimator(DATA_FILE, applied_constant)
+        case 4:
+            return est.SumPulseEstimator(DATA_FILE, applied_constant)
+        case 5:
+            return est.PulseFitEstimator(DATA_FILE, applied_constant)
+
+
 if __name__ == "__main__":
-    # TODO: Fix the sum all estimators
     # TODO: Apply estimators to noise and signal data
 
     # Initialize font and font size
@@ -60,27 +104,25 @@ if __name__ == "__main__":
         'size'   : 22}
     rc('font', **font)
 
-    # Initialize the estimators   
-    estimators: List[est.AbstractEstimator] = [
-        est.MaxMinEstimator(DATA_FILE),
-        est.MaxBaselineEstimator(DATA_FILE),
-        est.SumAllEstimator(DATA_FILE),
-        est.SumAllBaselineEstimator(DATA_FILE),
-        est.SumPulseEstimator(DATA_FILE)
-    ]
+    # Initialize the estimator
+    chosen_estimator = get_estimator(ESTIMATOR_ID)
 
     # Calculate estimations
-    for estimator in estimators:
-        estimator.calculate_estimation()
+    chosen_estimator.calculate_estimation()
         
     # Define the number of bins, and the bin range for the histogram
-    hist_settings = {
-        'num_bins': [40, 40, 40, 40, 40],
-        'bin_range': [(0.2, 0.4), (0.2, 0.4), (0.2, 0.4), (0.2, 0.4), (0.2, 0.4)]
-    }
+    if USE_CALIBRATION_CONSTANTS == 0:
+        hist_settings = {
+            'num_bins': [40, 30, 40, 40, 40, 40],
+            'bin_range': [(0.2, 0.5), (0.2, 0.4), (-100, 130), (-5, 70), (10, 50), (0.1, 0.4)]
+        }
+    else:
+        hist_settings = {
+            'num_bins': [30, 30, 40, 40, 40, 30],
+            'bin_range': [(7, 13), (7, 13), (-20, 40), (0, 20), (0, 20), (7, 13)]
+        }
 
     # Plot the histogram of the calibration data, save the bin counts and bin edges
-    chosen_estimator = estimators[ESTIMATOR_ID]
     chosen_num_bins = hist_settings['num_bins'][ESTIMATOR_ID]
     chosen_bin_range = hist_settings['bin_range'][ESTIMATOR_ID]
 
@@ -104,7 +146,8 @@ if __name__ == "__main__":
 
     # Set plot labels and formatting
     individual_bin_range = (chosen_bin_range[1] - chosen_bin_range[0]) / chosen_num_bins
-    plt.xlabel('Amplitude (mV)')
+    units = ["mV", "keV"]
+    plt.xlabel(f"Amplitude {units[USE_CALIBRATION_CONSTANTS]}")
     plt.ylabel(f"Number of Events per {round(individual_bin_range * 1e3, 2)} μV")
     plt.xlim(chosen_bin_range)
     plt.tight_layout()

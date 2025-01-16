@@ -16,13 +16,7 @@ def fit_pulse(x, A):
     xx=np.linspace(0, 4095, 4096)
     return A*np.interp(x, xx, _pulse_template)
 
-if __name__ == "__main__":
-    # Initialize font and font size
-    font = {'family' : 'DejaVu Sans',
-        'weight' : 'normal',
-        'size'   : 22}
-    rc('font', **font)
-
+def pulse_uncertainty():
     # Determine the uncertainty in the calibration using the noise data
     with open("noise.pkl","rb") as file:
         noise_data=pickle.load(file)
@@ -31,7 +25,18 @@ if __name__ == "__main__":
     for i in range(1000):
         current_data = noise_data['evt_%i'%i]
         std_list.append(np.std(current_data))
-    uncertainty = np.mean(std_list)
+
+    return np.mean(std_list)
+
+
+if __name__ == "__main__":
+    # Initialize font and font size
+    font = {'family' : 'DejaVu Sans',
+        'weight' : 'normal',
+        'size'   : 22}
+    rc('font', **font)
+
+    uncertainty = pulse_uncertainty()
     
     # Load calibration data
     with open("calibration.pkl","rb") as file:
