@@ -15,7 +15,7 @@ ID list:
 """
 ESTIMATOR_ID = 1
 DATA_FILE = "calibration.pkl"
-PLOT_BEST_FIT = False
+PLOT_BEST_FIT = True
 
 def gaussian(x, A, mean, width, base):
     """
@@ -103,8 +103,9 @@ if __name__ == "__main__":
         plot_bestfit()
 
     # Set plot labels and formatting
+    individual_bin_range = (chosen_bin_range[1] - chosen_bin_range[0]) / chosen_num_bins
     plt.xlabel('Amplitude (mV)')
-    plt.ylabel('Number of Events per 5 microvolts')
+    plt.ylabel(f"Number of Events per {round(individual_bin_range * 1e3, 2)} μV")
     plt.xlim(chosen_bin_range)
     plt.tight_layout()
     plt.legend(loc=1)
