@@ -32,7 +32,6 @@ CALIBRATION_CONSTANTS = [
         [1, 38.7]
     ]
 
-
 def gaussian(x, A, mean, width, base):
     """
     Model function for a Gaussian with a uniform background.
@@ -56,7 +55,7 @@ def plot_bestfit():
     use_conversion = np.absolute(USE_CALIBRATION_CONSTANTS - 1)
     adjust_factor = CALIBRATION_CONSTANTS[ESTIMATOR_ID][use_conversion]
     popt, pcov = curve_fit(gaussian, bin_centres, bin_counts,
-                           sigma=uncertainty, p0=(150, 10 / adjust_factor, 2 / adjust_factor, 3), absolute_sigma=True)
+                           sigma=uncertainty, p0=(150, 10 / adjust_factor, 1 / adjust_factor, 3), absolute_sigma=True)
 
     # Calculate the Chi squared and degrees of freedom
     bin_counts_fit = gaussian(bin_centres, *popt)
@@ -94,6 +93,31 @@ def get_estimator(choice: int):
         case 5:
             return est.PulseFitEstimator(DATA_FILE, applied_constant)
 
+def get_hist_settings():
+    # Define the number of bins, and the bin range for the histogram
+    if USE_CALIBRATION_CONSTANTS == 1 and DATA_FILE == "calibration.pkl":
+        hist_settings = {
+            'num_bins': [30, 30, 40, 40, 40, 30],
+            'bin_range': [(7, 13), (7, 13), (-20, 40), (0, 20), (0, 20), (7, 13)]
+        }
+    elif USE_CALIBRATION_CONSTANTS == 1 and DATA_FILE == "noise.pkl":
+        hist_settings = {
+            'num_bins': [20, 20, 40, 40, 40, 20],
+            'bin_range': [(3, 5), (1.7, 3), (-20, 40), (0, 20), (0, 20), (-0.5, 0.5)]
+        }
+    elif USE_CALIBRATION_CONSTANTS == 1 and DATA_FILE == "signal.pkl":
+        hist_settings = {
+            'num_bins': [20, 20, 40, 40, 40, 20],
+            'bin_range': [(3, 8), (1.7, 8), (-20, 40), (0, 20), (0, 20), (-1, 8)]
+        }
+    else:
+        # Default settings. Mainly used for no calibration constants, on the calibration data
+        hist_settings = {
+            'num_bins': [40, 30, 40, 40, 40, 40],
+            'bin_range': [(0.2, 0.5), (0.2, 0.4), (-100, 130), (-5, 70), (10, 50), (0.1, 0.4)]
+        }
+    return hist_settings
+
 
 if __name__ == "__main__":
     # TODO: Apply estimators to noise and signal data
@@ -110,17 +134,8 @@ if __name__ == "__main__":
     # Calculate estimations
     chosen_estimator.calculate_estimation()
         
-    # Define the number of bins, and the bin range for the histogram
-    if USE_CALIBRATION_CONSTANTS == 0:
-        hist_settings = {
-            'num_bins': [40, 30, 40, 40, 40, 40],
-            'bin_range': [(0.2, 0.5), (0.2, 0.4), (-100, 130), (-5, 70), (10, 50), (0.1, 0.4)]
-        }
-    else:
-        hist_settings = {
-            'num_bins': [30, 30, 40, 40, 40, 30],
-            'bin_range': [(7, 13), (7, 13), (-20, 40), (0, 20), (0, 20), (7, 13)]
-        }
+    # Collect histogram settings
+    hist_settings = get_hist_settings()
 
     # Plot the histogram of the calibration data, save the bin counts and bin edges
     chosen_num_bins = hist_settings['num_bins'][ESTIMATOR_ID]
@@ -147,7 +162,7 @@ if __name__ == "__main__":
     # Set plot labels and formatting
     individual_bin_range = (chosen_bin_range[1] - chosen_bin_range[0]) / chosen_num_bins
     units = ["mV", "keV"]
-    plt.xlabel(f"Amplitude {units[USE_CALIBRATION_CONSTANTS]}")
+    plt.xlabel(f"Amplitude ({units[USE_CALIBRATION_CONSTANTS]})")
     plt.ylabel(f"Number of Events per {round(individual_bin_range * 1e3, 2)} μV")
     plt.xlim(chosen_bin_range)
     plt.tight_layout()
